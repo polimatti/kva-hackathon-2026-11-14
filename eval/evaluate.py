@@ -95,6 +95,44 @@ def evaluate(docs, mode):
     }, anon, spans, vault
 
 
+def evaluate_table(docs, table_path, mode):
+    """Cell-level privacy on a CSV register + cross-file consistency (same person, same token in text and table)."""
+    import csv
+    from anon.core import anonymize_all
+    rows = list(csv.reader(open(table_path, encoding="utf-8")))
+    header, body = rows[0], rows[1:]
+    gold = json.loads(Path(table_path).with_suffix(".gold.json").read_text(encoding="utf-8"))
+    texts = [d["text"] for d in docs]
+    _, spans, tables, _ = anonymize_all(texts, [(header, body)], mode)
+    out = tables[0][1]
+    protected = 0
+    for g in gold:
+        orig, new = body[g["row"]][g["col"]], out[g["row"]][g["col"]]
+        if g["col"] == 8:  # free-text note: the named person must not survive
+            q = g["text"].split(" ", 2)[-1].replace("Ing. ", "")
+            protected += all(w not in new for w in q.split())
+        else:
+            protected += orig not in new
+    # dominant token per real person in the documents
+    text_tok = defaultdict(Counter)
+    for d, sp in zip(docs, spans):
+        for g in d["pii"]:
+            if g["type"] == "PERSON":
+                m = [s for s in sp if s["start"] <= g["start"] and s["end"] >= g["end"]]
+                if len(m) == 1:
+                    text_tok[g["entity"]][m[0]["token"]] += 1
+    dominant = {e: c.most_common(1)[0][0] for e, c in text_tok.items()}
+    owners = Counter(dominant.values())  # a token shared by several people identifies nobody
+    same = total = 0
+    for g in gold:
+        if g["col"] == 1 and g["entity"] in dominant:
+            total += 1
+            tok = dominant[g["entity"]]
+            same += out[g["row"]][1] == tok and owners[tok] == 1
+    return {"table_cells_protected": protected / len(gold), "table_personal_cells": len(gold),
+            "cross_file_consistency": same / total if total else 0.0, "cross_file_rows": total}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--corpus", default=str(ROOT / "data" / "corpus.jsonl"))
@@ -105,6 +143,9 @@ def main():
     results = {}
     for mode in MODES:
         r, anon, spans, vault = evaluate(docs, mode)
+        table = Path(a.corpus).with_name("registro_formazione.csv")
+        if Path(a.corpus).name == "corpus.jsonl" and table.exists():
+            r.update(evaluate_table(docs, table, mode))
         results[mode] = r
         if mode == "pseudo":
             (out.parent / "anonymised.jsonl").write_text(
@@ -120,6 +161,10 @@ def main():
               f"{r['utility_preserved']:8.3f} {r['linkage_bcubed']['f1']:8.3f} {r['qa_tickets_per_reporter_rand']:9.3f} "
               f"{q2['anonymised']:>5}/{q2['truth']:<5}")
     print("recall by type (pseudo):", results["pseudo"]["recall_by_type"])
+    for m, r in results.items():
+        if "table_cells_protected" in r:
+            print(f"table {m:7} cells protected {r['table_cells_protected']:.3f} ({r['table_personal_cells']})  "
+                  f"same token text<->table {r['cross_file_consistency']:.3f} ({r['cross_file_rows']} rows)")
 
 
 if __name__ == "__main__":

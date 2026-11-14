@@ -29,7 +29,11 @@
   "qa_distinct_injured_workers": {
    "truth": 27,
    "anonymised": 27
-  }
+  },
+  "table_cells_protected": 0.5504587155963303,
+  "table_personal_cells": 327,
+  "cross_file_consistency": 0.0,
+  "cross_file_rows": 0
  },
  "redact": {
   "mode": "redact",
@@ -61,7 +65,11 @@
   "qa_distinct_injured_workers": {
    "truth": 27,
    "anonymised": 1
-  }
+  },
+  "table_cells_protected": 1.0,
+  "table_personal_cells": 327,
+  "cross_file_consistency": 0.0,
+  "cross_file_rows": 60
  },
  "pseudo": {
   "mode": "pseudo",
@@ -93,6 +101,10 @@
   "qa_distinct_injured_workers": {
    "truth": 27,
    "anonymised": 27
-  }
+  },
+  "table_cells_protected": 1.0,
+  "table_personal_cells": 327,
+  "cross_file_consistency": 1.0,
+  "cross_file_rows": 60
  }
 }

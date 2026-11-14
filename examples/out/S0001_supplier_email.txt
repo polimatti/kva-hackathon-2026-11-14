@@ -1,0 +1,11 @@
+Da: [EMAIL PERSONA-12]
+A: [EMAIL PERSONA-13]
+Oggetto: non conformità lotto L2026-481
+
+Gentile Ing. [PERSONA-13],
+vi segnaliamo che il lotto L2026-481 del componente CMP-9399-B presenta bave sul bordo. Per la nota di credito usate l'IBAN [IBAN-01].
+
+Cordiali saluti,
+[PERSONA-12]
+Stampi Canavese srl
+Tel. [TEL-04]

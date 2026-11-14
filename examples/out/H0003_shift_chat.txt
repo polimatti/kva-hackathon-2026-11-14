@@ -1,0 +1,1 @@
+[06:03] [PERSONA-01]: passo il turno, CNC-L5 ok, PRESSA-01 in allarme E-502. Se serve chiama [PERSONA-02] al [TEL-01].

@@ -1,0 +1,6 @@
+Rapporto infortunio I0002 del 04/10/2026
+Lavoratore: [PERSONA-06], CF [CF-01], matricola [MATRICOLA-01]
+Reparto: Logistica interna; macchina PRESSA-01
+Dinamica: durante il cambio stampo su PRESSA-01 il lavoratore ha riportato una contusione alla mano sinistra. Era presente il preposto Dott. [PERSONA-07].
+Automezzo aziendale coinvolto: targa [TARGA-01]
+Residenza del lavoratore: [INDIRIZZO-01]

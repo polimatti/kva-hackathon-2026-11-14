@@ -200,14 +200,33 @@ TAG = {"PERSON": "PERSONA", "EMAIL": "EMAIL", "PHONE": "TEL", "IBAN": "IBAN", "T
 
 def anonymize_corpus(texts, mode="pseudo"):
     """Returns (anonymized_texts, spans_per_text, vault). Each span: dict(start,end,type,key,token)."""
-    spans, surnames = detect_corpus(texts, mode)
-    persons = [t[s:e] for t, sp in zip(texts, spans) for s, e, typ in sp if typ == "PERSON"]
-    emails = [t[s:e] for t, sp in zip(texts, spans) for s, e, typ in sp if typ == "EMAIL"]
+    out_texts, out_spans, _, vault = anonymize_all(texts, [], mode)
+    return out_texts, out_spans, vault
+
+
+def anonymize_all(texts, tables, mode="pseudo"):
+    """Texts and tables in one pass, sharing identities and counters.
+    tables: list of (header, rows). Returns (texts, spans, tables, vault)."""
+    from anon.tables import classify, table_texts
+    extra = [x for h, rows in tables for x in table_texts(h, rows)]
+    all_texts = list(texts) + extra
+    spans, surnames = detect_corpus(all_texts, mode)
+    persons = [t[s:e] for t, sp in zip(all_texts, spans) for s, e, typ in sp if typ == "PERSON"]
+    emails = [t[s:e] for t, sp in zip(all_texts, spans) for s, e, typ in sp if typ == "EMAIL"]
     res = Resolver(persons, emails, surnames)
     ids = defaultdict(dict)
     vault = defaultdict(set)
-    out_texts, out_spans = [], []
-    for t, sp in zip(texts, spans):
+
+    def token_for(typ, key, surface):
+        if mode != "pseudo":
+            return f"[{TAG[typ]}]"
+        group = "PERSONA" if typ in ("PERSON", "EMAIL") else TAG[typ]
+        n = ids[group].setdefault(key, len(ids[group]) + 1)
+        token = f"[EMAIL PERSONA-{n:02d}]" if typ == "EMAIL" else f"[{TAG[typ]}-{n:02d}]"
+        vault[token].add(surface)
+        return token
+
+    def apply(t, sp):
         buf, pos, rich = [], 0, []
         local = res.fulls([t[s:e] for s, e, ty in sp if ty == "PERSON"],
                           [t[s:e] for s, e, ty in sp if ty == "EMAIL"])
@@ -219,15 +238,50 @@ def anonymize_corpus(texts, mode="pseudo"):
                 key = res.email(surface, local)
             else:
                 key = re.sub(r"\s|[-+]", "", surface).upper()
-            if mode == "pseudo":
-                group = "PERSONA" if typ in ("PERSON", "EMAIL") else TAG[typ]
-                n = ids[group].setdefault(key, len(ids[group]) + 1)
-                token = f"[EMAIL PERSONA-{n:02d}]" if typ == "EMAIL" else f"[{TAG[typ]}-{n:02d}]"
-                vault[token].add(surface)
-            else:
-                token = f"[{TAG[typ]}]"
+            token = token_for(typ, key, surface)
             buf.append(t[pos:s]); buf.append(token); pos = e
             rich.append({"start": s, "end": e, "type": typ, "key": key if mode == "pseudo" else typ, "token": token})
         buf.append(t[pos:])
-        out_texts.append("".join(buf)); out_spans.append(rich)
-    return out_texts, out_spans, {k: sorted(v) for k, v in vault.items()}
+        return "".join(buf), rich
+
+    out_texts, out_spans = [], []
+    for t, sp in zip(texts, spans):
+        a, r = apply(t, sp)
+        out_texts.append(a); out_spans.append(r)
+
+    out_tables = []
+    for header, rows in tables:
+        types = classify(header)
+        li = types.index("LAST") if "LAST" in types else None
+        fi = types.index("FIRST") if "FIRST" in types else None
+        new_rows = []
+        for row in rows:
+            new = list(row)
+            for i, (typ, v) in enumerate(zip(types, row)):
+                if not v or typ is None or (mode == "regex" and typ in ("LAST", "FIRST", "PERSON")):
+                    continue
+                if typ in ("LAST", "FIRST"):
+                    first = row[fi] if fi is not None else None
+                    last = row[li] if li is not None else None
+                    key = res.key(first, last, "full") if first and last else res.person(v)
+                    new[i] = token_for("PERSON", key, f"{first} {last}")
+                elif typ == "PERSON":
+                    new[i] = token_for("PERSON", res.person(v), v)
+                elif typ == "EMAIL":
+                    new[i] = token_for("EMAIL", res.email(v), v)
+                elif typ == "FREE_TEXT":
+                    sp = detect_corpus([v], mode)[0][0] if mode == "regex" else _redetect(v, surnames)
+                    new[i] = apply(v, sp)[0]
+                else:
+                    new[i] = token_for(typ, re.sub(r"\s|[-+]", "", v).upper(), v)
+            new_rows.append(new)
+        out_tables.append((header, new_rows))
+    return out_texts, out_spans, out_tables, {k: sorted(v) for k, v in vault.items()}
+
+
+def _redetect(text, surnames):
+    """Detect one free-text cell with the surnames learned from the whole corpus."""
+    seed, _ = _person_seed(text)
+    cands = _structured(text) + [(s, e, "PERSON", 5) for s, e in seed]
+    cands += [(s, e, "PERSON", 6) for s, e in _person_coref(text, surnames)]
+    return [(s, e, typ) for s, e, typ, _ in _resolve_overlaps(cands)]

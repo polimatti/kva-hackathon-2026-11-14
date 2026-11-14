@@ -203,6 +203,28 @@ def main():
             fh.write(json.dumps(d, ensure_ascii=False) + "\n")
     n_pii = sum(len(d["pii"]) for d in docs)
     print(f"wrote {len(docs)} docs, {n_pii} PII spans, {sum(len(d['utility']) for d in docs)} utility tokens -> {a.out}")
+    write_table(random.Random(a.seed + 1), staff, Path(a.out).with_name("registro_formazione.csv"))
+
+
+def write_table(rng, staff, path):
+    """A training register (CSV) that names the same people as the documents: tests cross-file consistency.
+    Gold: registro_formazione.gold.json maps (row, column) -> {type, entity} for every personal cell."""
+    import csv
+    header = ["Matricola", "Cognome", "Nome", "Email", "Telefono", "Reparto", "Macchina", "Ore", "Note"]
+    rows, gold = [], []
+    for r in range(60):
+        p, q = rng.choice(staff), rng.choice(staff)
+        note = rng.choice(["", "", f"affiancato da {q['first']} {q['last']}", f"recupero con Ing. {q['last']}"])
+        rows.append([p["emp"], p["last"], p["first"], p["email"], p["phone"], rng.choice(DEPTS),
+                     rng.choice(MACHINES), str(rng.choice([4, 8, 16])), note])
+        for c, typ in ((0, "EMPLOYEE_ID"), (1, "PERSON"), (2, "PERSON"), (3, "EMAIL"), (4, "PHONE")):
+            gold.append({"row": r, "col": c, "type": typ, "entity": p["id"]})
+        if note:
+            gold.append({"row": r, "col": 8, "type": "PERSON", "entity": q["id"], "text": note})
+    with open(path, "w", encoding="utf-8", newline="") as fh:
+        csv.writer(fh).writerows([header] + rows)
+    path.with_suffix(".gold.json").write_text(json.dumps(gold), encoding="utf-8")
+    print(f"wrote table {path.name}: {len(rows)} rows, {len(gold)} personal cells")
 
 
 if __name__ == "__main__":

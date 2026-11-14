@@ -1,0 +1,5 @@
+Ticket manutenzione T0008 del 06/07/2026
+Macchina: FORNO-T1
+Segnalato da: [PERSONA-20] (matricola [MATRICOLA-05])
+Descrizione: allarme E-415 durante il ciclo, sostituito il componente CMP-4336-A. Il tecnico [PERSONA-20] ha chiesto supporto a [PERSONA-19].
+Recapito tecnico: [TEL-01]

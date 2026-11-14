@@ -1,0 +1,5 @@
+Ticket manutenzione T0000 del 02/04/2026
+Macchina: PRESSA-01
+Segnalato da: Anna Barbero (matricola MAT-35533)
+Descrizione: allarme E-104 durante il ciclo, sostituito il componente CMP-5811-B. Il tecnico Ing. Barbero ha chiesto supporto a F. Costa.
+Recapito tecnico: 387 8673281

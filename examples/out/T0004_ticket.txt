@@ -1,0 +1,5 @@
+Ticket manutenzione T0004 del 07/01/2026
+Macchina: ROBOT-SALD-2
+Segnalato da: [PERSONA-18] (matricola [MATRICOLA-04])
+Descrizione: allarme E-104 durante il ciclo, sostituito il componente CMP-4033-C. Il tecnico [PERSONA-18] ha chiesto supporto a [PERSONA-19].
+Recapito tecnico: [TEL-08]

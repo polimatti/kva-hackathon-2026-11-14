@@ -1,0 +1,1 @@
+[06:00] [PERSONA-01]: passo il turno, ROBOT-SALD-2 ok, CNC-L3 in allarme E-415. Se serve chiama [PERSONA-03] al [TEL-02].

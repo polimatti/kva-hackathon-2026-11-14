@@ -1,0 +1,5 @@
+Ticket manutenzione T0008 del 06/07/2026
+Macchina: FORNO-T1
+Segnalato da: Marco Cravero (matricola MAT-99485)
+Descrizione: allarme E-415 durante il ciclo, sostituito il componente CMP-4336-A. Il tecnico Cravero ha chiesto supporto a Elena Longo.
+Recapito tecnico: 3903857804

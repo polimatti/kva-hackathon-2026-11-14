@@ -1,0 +1,6 @@
+Rapporto infortunio I0006 del 21/03/2026
+Lavoratore: [PERSONA-08], CF [CF-02], matricola [MATRICOLA-02]
+Reparto: Trattamenti termici; macchina PRESSA-04
+Dinamica: durante il cambio stampo su PRESSA-04 il lavoratore ha riportato una contusione alla mano sinistra. Era presente il preposto Dott. [PERSONA-09].
+Automezzo aziendale coinvolto: targa [TARGA-02]
+Residenza del lavoratore: [INDIRIZZO-02]

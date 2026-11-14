@@ -1,0 +1,5 @@
+Ticket manutenzione T0004 del 07/01/2026
+Macchina: ROBOT-SALD-2
+Segnalato da: Alessandro Rinaldi (matricola MAT-94268)
+Descrizione: allarme E-104 durante il ciclo, sostituito il componente CMP-4033-C. Il tecnico A. Rinaldi ha chiesto supporto a E. Longo.
+Recapito tecnico: 3891279652

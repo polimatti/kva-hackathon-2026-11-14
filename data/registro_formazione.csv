@@ -1,0 +1,61 @@
+Matricola,Cognome,Nome,Email,Telefono,Reparto,Macchina,Ore,Note
+MAT-35533,Barbero,Anna,anna.barbero@brusaindustrie.it,387 8673281,Lavorazioni CNC,CNC-L3,16,recupero con Ing. Bianchi
+MAT-91134,Rinaldi,Paolo,paolo.rinaldi@brusaindustrie.it,+39 390 829 2028,Lavorazioni CNC,CNC-L3,8,
+MAT-38977,Barbero,Sara,sara.barbero@brusaindustrie.it,+39 327 690 7499,Trattamenti termici,FORNO-T1,8,recupero con Ing. Martini
+MAT-54267,Ferrero,Nives,nives.ferrero@brusaindustrie.it,333-3328701,Trattamenti termici,CNC-L3,4,
+MAT-76605,Moretti,Alessandro,alessandro.moretti@brusaindustrie.it,345 8095541,Trattamenti termici,FORNO-T1,16,recupero con Ing. Giordano
+MAT-77566,Mancini,Laura,laura.mancini@brusaindustrie.it,398-6796220,Stampaggio,FORNO-T1,16,
+MAT-27015,Fontana,Sara,sara.fontana@brusaindustrie.it,+39 337 514 6694,Saldatura,CNC-L3,16,
+MAT-74709,Rinaldi,Martina,martina.rinaldi@brusaindustrie.it,+39 379 463 3753,Logistica interna,PRESSA-07,16,
+MAT-22267,Fontana,Chiara,chiara.fontana@brusaindustrie.it,+39 396 608 8474,Trattamenti termici,CNC-L3,4,
+MAT-72109,Martini,Mario,mario.martini@brusaindustrie.it,+39 384 648 2506,Logistica interna,ROBOT-SALD-2,8,affiancato da Roberto Cravero
+MAT-88738,Ferrero,Paolo,paolo.ferrero@brusaindustrie.it,3762662801,Logistica interna,ROBOT-SALD-2,16,
+MAT-31161,Moretti,Adalberto,adalberto.moretti@brusaindustrie.it,+39 325 639 4906,Saldatura,PRESSA-07,8,
+MAT-55083,Giordano,Federica,federica.giordano@brusaindustrie.it,371 4093305,Logistica interna,CNC-L3,8,
+MAT-79707,Giordano,Stefano,stefano.giordano@brusaindustrie.it,386-5309219,Saldatura,CNC-L3,8,affiancato da Marco Caruso
+MAT-91134,Rinaldi,Paolo,paolo.rinaldi@brusaindustrie.it,+39 390 829 2028,Trattamenti termici,CNC-L5,16,affiancato da Fabio Bertolino
+MAT-44625,Longo,Elena,elena.longo@brusaindustrie.it,+39 351 616 1081,Stampaggio,PRESSA-07,16,recupero con Ing. Allasia
+MAT-38977,Barbero,Sara,sara.barbero@brusaindustrie.it,+39 327 690 7499,Saldatura,PRESSA-04,4,
+MAT-27015,Fontana,Sara,sara.fontana@brusaindustrie.it,+39 337 514 6694,Logistica interna,FORNO-T1,4,
+MAT-88738,Ferrero,Paolo,paolo.ferrero@brusaindustrie.it,3762662801,Trattamenti termici,FORNO-T1,4,recupero con Ing. Longo
+MAT-22267,Fontana,Chiara,chiara.fontana@brusaindustrie.it,+39 396 608 8474,Stampaggio,PRESSA-04,16,
+MAT-99485,Cravero,Marco,marco.cravero@brusaindustrie.it,3903857804,Lavorazioni CNC,NASTRO-12,16,affiancato da Federica Giordano
+MAT-71078,Moretti,Davide,davide.moretti@brusaindustrie.it,380 2252889,Stampaggio,PRESSA-07,8,
+MAT-27015,Fontana,Sara,sara.fontana@brusaindustrie.it,+39 337 514 6694,Saldatura,ROBOT-SALD-2,8,affiancato da Laura Mancini
+MAT-57931,Caruso,Marco,marco.caruso@brusaindustrie.it,+39 329 940 9779,Stampaggio,PRESSA-01,16,
+MAT-36203,Allasia,Riccardo,riccardo.allasia@brusaindustrie.it,350-9377564,Trattamenti termici,NASTRO-12,4,affiancato da Riccardo Allasia
+MAT-74709,Rinaldi,Martina,martina.rinaldi@brusaindustrie.it,+39 379 463 3753,Trattamenti termici,NASTRO-12,4,
+MAT-27015,Fontana,Sara,sara.fontana@brusaindustrie.it,+39 337 514 6694,Logistica interna,NASTRO-12,16,
+MAT-88738,Ferrero,Paolo,paolo.ferrero@brusaindustrie.it,3762662801,Trattamenti termici,FORNO-T1,8,
+MAT-72109,Martini,Mario,mario.martini@brusaindustrie.it,+39 384 648 2506,Lavorazioni CNC,PRESSA-01,8,
+MAT-77566,Mancini,Laura,laura.mancini@brusaindustrie.it,398-6796220,Stampaggio,PRESSA-01,16,
+MAT-77401,Bianchi,Adalberto,adalberto.bianchi@brusaindustrie.it,322-8509284,Logistica interna,CNC-L3,16,
+MAT-35533,Barbero,Anna,anna.barbero@brusaindustrie.it,387 8673281,Logistica interna,CNC-L3,4,recupero con Ing. Ferrero
+MAT-30243,Greco,Martina,martina.greco@brusaindustrie.it,+39 329 317 5960,Saldatura,FORNO-T1,4,
+MAT-30243,Greco,Martina,martina.greco@brusaindustrie.it,+39 329 317 5960,Saldatura,ROBOT-SALD-2,16,recupero con Ing. Rinaldi
+MAT-35656,Rizzo,Lino,lino.rizzo@brusaindustrie.it,385 5136556,Stampaggio,CNC-L3,8,affiancato da Adalberto Moretti
+MAT-77401,Bianchi,Adalberto,adalberto.bianchi@brusaindustrie.it,322-8509284,Lavorazioni CNC,CNC-L5,8,affiancato da Sara Fontana
+MAT-27015,Fontana,Sara,sara.fontana@brusaindustrie.it,+39 337 514 6694,Logistica interna,ROBOT-SALD-2,16,affiancato da Federica Giordano
+MAT-29590,Bertolino,Fabio,fabio.bertolino@brusaindustrie.it,369 8826343,Logistica interna,PRESSA-04,8,recupero con Ing. Ferrero
+MAT-94268,Rinaldi,Alessandro,alessandro.rinaldi@brusaindustrie.it,3891279652,Saldatura,FORNO-T1,4,recupero con Ing. Fontana
+MAT-76605,Moretti,Alessandro,alessandro.moretti@brusaindustrie.it,345 8095541,Logistica interna,CNC-L5,8,affiancato da Martina Greco
+MAT-44625,Longo,Elena,elena.longo@brusaindustrie.it,+39 351 616 1081,Lavorazioni CNC,CNC-L3,16,affiancato da Stefano Giordano
+MAT-72109,Martini,Mario,mario.martini@brusaindustrie.it,+39 384 648 2506,Logistica interna,CNC-L3,8,
+MAT-70904,Giordano,Paolo,paolo.giordano@brusaindustrie.it,3578259462,Trattamenti termici,PRESSA-04,16,
+MAT-94268,Rinaldi,Alessandro,alessandro.rinaldi@brusaindustrie.it,3891279652,Lavorazioni CNC,PRESSA-01,16,
+MAT-54267,Ferrero,Nives,nives.ferrero@brusaindustrie.it,333-3328701,Stampaggio,NASTRO-12,8,
+MAT-30243,Greco,Martina,martina.greco@brusaindustrie.it,+39 329 317 5960,Logistica interna,ROBOT-SALD-2,16,
+MAT-22267,Fontana,Chiara,chiara.fontana@brusaindustrie.it,+39 396 608 8474,Stampaggio,PRESSA-07,16,
+MAT-77401,Bianchi,Adalberto,adalberto.bianchi@brusaindustrie.it,322-8509284,Stampaggio,ROBOT-SALD-2,4,
+MAT-30243,Greco,Martina,martina.greco@brusaindustrie.it,+39 329 317 5960,Stampaggio,PRESSA-04,16,affiancato da Adalberto Moretti
+MAT-31161,Moretti,Adalberto,adalberto.moretti@brusaindustrie.it,+39 325 639 4906,Lavorazioni CNC,CNC-L5,8,
+MAT-71078,Moretti,Davide,davide.moretti@brusaindustrie.it,380 2252889,Stampaggio,CNC-L3,4,
+MAT-30243,Greco,Martina,martina.greco@brusaindustrie.it,+39 329 317 5960,Lavorazioni CNC,PRESSA-04,4,affiancato da Riccardo Allasia
+MAT-89817,Longo,Matteo,matteo.longo@brusaindustrie.it,3638468353,Lavorazioni CNC,ROBOT-SALD-2,8,
+MAT-79707,Giordano,Stefano,stefano.giordano@brusaindustrie.it,386-5309219,Stampaggio,PRESSA-04,4,recupero con Ing. Marino
+MAT-88738,Ferrero,Paolo,paolo.ferrero@brusaindustrie.it,3762662801,Lavorazioni CNC,FORNO-T1,4,affiancato da Anna Barbero
+MAT-94268,Rinaldi,Alessandro,alessandro.rinaldi@brusaindustrie.it,3891279652,Stampaggio,NASTRO-12,16,recupero con Ing. Ferrero
+MAT-30243,Greco,Martina,martina.greco@brusaindustrie.it,+39 329 317 5960,Logistica interna,ROBOT-SALD-2,16,recupero con Ing. Longo
+MAT-70904,Giordano,Paolo,paolo.giordano@brusaindustrie.it,3578259462,Saldatura,CNC-L5,16,
+MAT-88604,Costa,Martina,martina.costa@brusaindustrie.it,+39 398 747 4248,Trattamenti termici,CNC-L5,4,affiancato da Paolo Ferrero
+MAT-55083,Giordano,Federica,federica.giordano@brusaindustrie.it,371 4093305,Trattamenti termici,NASTRO-12,4,
