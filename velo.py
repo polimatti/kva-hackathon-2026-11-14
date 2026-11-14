@@ -2,6 +2,12 @@
 
   python velo.py anonymize --in <folder> --out <folder> --vault <folder>
   python velo.py reidentify --vault <folder> --token "[PERSONA-07]" --who "<name, role>" --reason "<why>"
+  python velo.py verify --out <folder> --vault <folder>
+
+Architecture: Dual Feedback Loop
+  Loop 1 (Forward Gate): after pseudonymisation, re-scan output for residual PII.
+  Loop 2 (Retro-Feedback): audit identity consistency across the full corpus.
+  Output: forensic compliance certificate written to vault/certificate.json.
 
 Where the mapping table lives and who can use it:
 - The memory / model only ever receives --out. The mapping (token -> original values) is written ONLY to --vault,
@@ -20,6 +26,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from anon.core import anonymize_all  # noqa: E402
+from anon.audit import (  # noqa: E402
+    verify_clean,
+    audit_consistency,
+    generate_certificate,
+    print_certificate,
+)
 
 
 def cmd_anonymize(a):
@@ -34,6 +46,8 @@ def cmd_anonymize(a):
         rows = list(csv.reader(p.open(encoding="utf-8")))
         tables.append((rows[0], rows[1:]))
     out_texts, spans, out_tables, mapping = anonymize_all(texts, tables, a.mode)
+
+    # Write pseudonymised output
     for p, t in zip(txt, out_texts):
         dst = out / p.relative_to(src); dst.parent.mkdir(parents=True, exist_ok=True)
         dst.write_text(t, encoding="utf-8")
@@ -41,11 +55,59 @@ def cmd_anonymize(a):
         dst = out / p.relative_to(src); dst.parent.mkdir(parents=True, exist_ok=True)
         with dst.open("w", encoding="utf-8", newline="") as fh:
             csv.writer(fh).writerows([h] + rows)
+
+    # Write vault
     vault.mkdir(parents=True, exist_ok=True)
     (vault / "mapping.json").write_text(json.dumps(mapping, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    # --- DUAL FEEDBACK LOOP ---
+    batch_id = f"velo-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+
+    # Loop 1: Forward Verification Gate
+    verification = verify_clean(out_texts)
+
+    # Loop 2: Retro-Feedback Consistency Audit
+    consistency = audit_consistency(spans)
+
+    # Generate compliance certificate
+    cert = generate_certificate(
+        batch_id=batch_id,
+        n_documents=len(txt),
+        n_tables=len(tab),
+        mode=a.mode,
+        verification_results=verification,
+        consistency_results=consistency,
+        vault_location=str(vault.resolve()),
+    )
+    (vault / "certificate.json").write_text(json.dumps(cert, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    # Summary
     n = sum(len(s) for s in spans)
     print(f"{len(txt)} text files, {len(tab)} tables -> {out}  |  {n} spans replaced in text  |  "
           f"{len(mapping)} tokens in vault {vault / 'mapping.json'}")
+    print()
+    print(print_certificate(cert))
+
+    if cert["status"] == "NON-COMPLIANT":
+        sys.exit(1)
+
+
+def cmd_verify(a):
+    """Standalone verification: re-run both loops on already-processed output."""
+    out, vault = Path(a.out), Path(a.vault)
+    txt = sorted(out.rglob("*.txt"))
+    texts = [p.read_text(encoding="utf-8") for p in txt]
+
+    verification = verify_clean(texts)
+    total_leaks = sum(len(r) for r in verification)
+    if total_leaks:
+        print(f"FAIL: {total_leaks} residual PII pattern(s) found in output")
+        for i, (p, leaks) in enumerate(zip(txt, verification)):
+            for lk in leaks:
+                print(f"  {p.name}:{lk['start']}-{lk['end']} [{lk['type']}] {lk['surface']}")
+        sys.exit(1)
+    else:
+        print(f"PASS: {len(txt)} files scanned, no residual PII found")
 
 
 def cmd_reidentify(a):
@@ -66,11 +128,13 @@ def main():
     an = sub.add_parser("anonymize"); an.add_argument("--in", dest="inp", required=True)
     an.add_argument("--out", required=True); an.add_argument("--vault", required=True)
     an.add_argument("--mode", default="pseudo", choices=["pseudo", "redact", "regex"])
+    vf = sub.add_parser("verify"); vf.add_argument("--out", required=True)
+    vf.add_argument("--vault", required=True)
     re_ = sub.add_parser("reidentify"); re_.add_argument("--vault", required=True)
     re_.add_argument("--token", required=True); re_.add_argument("--who", default="")
     re_.add_argument("--reason", default="")
     a = ap.parse_args()
-    {"anonymize": cmd_anonymize, "reidentify": cmd_reidentify}[a.cmd](a)
+    {"anonymize": cmd_anonymize, "verify": cmd_verify, "reidentify": cmd_reidentify}[a.cmd](a)
 
 
 if __name__ == "__main__":
