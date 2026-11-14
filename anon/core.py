@@ -19,7 +19,12 @@ Leonardo Edoardo Jacopo Ettore Tiziano Mirko Diego Samuele Mattia Christian Gian
 Aurora Ginevra Gaia Ludovica Noemi Arianna Greta Emma Alice Camilla Rebecca Viola Asia Bianca Marta Nicole Serena
 Veronica Michela Giada Alberta Antonella Rita Luisa Carla Gianni Mauro Claudio Luciano Walter Dario Ivan Igor
 Cesare Ottavio Lino Oreste Adalberto Ernesta Gisella Nives Fulvia Ugo Aldo Elio Silvano Rocco Nadia Loredana
-Tommaso Achille Pierluigi Gianfranco Giancarlo Pierpaolo Stefania Simona Cinzia Elisabetta Ornella Graziella""".split())
+Tommaso Achille Pierluigi Gianfranco Giancarlo Pierpaolo Stefania Simona Cinzia Elisabetta Ornella Graziella
+Mara Ilenia Ruggero Corrado Tullio Rosanna Benedetta Piero Lina Tina Concetta Assunta Giuseppina Antonietta
+Carmela Agostino Silvio Livio Valerio Federico Flavio Emilio Eugenio Alfredo Guido Osvaldo Oscar Italo
+Adriano Adriana Liliana Milena Lorella Rossella Viviana Sabrina Sonia Tamara Grazia Graziella Wanda
+Lisa Margherita Caterina Donatella Emanuela Gloria Irma Lia Licia Lidia Miriam Natalina Olga Oriana
+Piera Rachele Regina Silvana Susanna Tiziana Wilma Gian Pier""".split())
 TITLES = r"(?:Ing\.|Dott\.ssa|Dott\.|Geom\.|Sig\.ra|Sig\.|Per\. Ind\.|Avv\.|Arch\.)"
 CAP = r"[A-ZÀ-Ý][a-zà-ÿ']+"
 STOP = {"Ticket", "Macchina", "Segnalato", "Descrizione", "Recapito", "Oggetto", "Gentile", "Cordiali", "Tel",
@@ -27,7 +32,9 @@ STOP = {"Ticket", "Macchina", "Segnalato", "Descrizione", "Recapito", "Oggetto",
         "Per", "Via", "Corso", "Piazza", "Strada", "Torino", "Oggi", "Ieri", "Domani", "Nota", "Note", "Anche",
         "Poi", "Quindi", "Inoltre", "Dopo", "Prima", "Durante", "Secondo", "Come", "Mentre", "Ciao", "Buongiorno",
         "Grazie", "Salve", "Si", "Non", "Ho", "Abbiamo", "Ha", "Questa", "Questo", "Ogni", "Alle", "Dal", "Del",
-        "Della", "Nel", "Nella", "Con", "Su", "Oggetto", "Fornitore", "Mezzo", "Corso", "Modulo", "Esito"}
+        "Della", "Nel", "Nella", "Con", "Su", "Oggetto", "Fornitore", "Mezzo", "Corso", "Modulo", "Esito",
+        "Verbale", "Rilievo", "Auditor", "Variazione", "Nuovo", "Nuova", "Nuovi"}
+SURNAME_PREFIX = {"De", "Della", "Dalle", "Dalla", "Del", "Degli", "Dello", "Di", "Lo", "La", "Li", "D'"}
 
 STRUCTURED = [  # (type, priority, regex) — lower priority wins on overlap
     ("ADDRESS", 0, re.compile(r"\b(?:Via|Viale|Corso|Piazza|Strada|Largo)\s[^\n,]{2,45}?\s\d{1,4}[A-Z]?,\s\d{5}\s" + CAP)),
@@ -58,9 +65,29 @@ def _structured(text):
     return [(m.start(), m.end(), t, p) for t, p, rx in STRUCTURED for m in rx.finditer(text)]
 
 
+def _learn_surname(words, surnames):
+    """Given a list of name words, learn the surname and add to the set."""
+    if not words:
+        return
+    if len(words) >= 2 and words[-2] in SURNAME_PREFIX:
+        surnames.add(f"{words[-2]} {words[-1]}")
+    elif len(words) >= 2 and words[0] in SURNAME_PREFIX:
+        surnames.add(f"{words[0]} {words[1]}")
+    elif len(words) == 1:
+        surnames.add(words[0])
+    else:
+        # Multi-word: check if first word is a surname (admin order)
+        if not _isfirst(words[0]) and words[0] not in SURNAME_PREFIX:
+            surnames.add(words[0])
+        else:
+            surnames.add(words[-1])
+
+
 def _person_seed(text):
     """Rules that need no corpus knowledge. Returns spans and learned surnames."""
     spans, surnames = [], set()
+
+    # --- Pair-based detection (known first names) ---
     for s, e, a, b in _pairs(text, CAP):
         if a in GAZ_FIRST and b not in STOP:  # Firstname Surname (also "Anna Bruno")
             spans.append((s, e)); surnames.add(b)
@@ -69,17 +96,66 @@ def _person_seed(text):
     for s, e, a, b in _pairs(text, UPW):  # ROSSI MARIO / MARIO ROSSI
         if _isfirst(a) != _isfirst(b) and (a if _isfirst(b) else b).title() not in STOP:
             spans.append((s, e)); surnames.add((b if _isfirst(a) else a).title())
-    for m in re.finditer(rf"{TITLES}\s({CAP})\b", text):  # Ing. Rossi
-        if m.group(1) not in STOP:
-            spans.append((m.start(1), m.end(1))); surnames.add(m.group(1))
-    for m in re.finditer(rf"(?<![\w.])([A-Z])\.\s({CAP})\b", text):  # M. Rossi
-        if m.group(2) not in STOP:
-            spans.append((m.start(), m.end())); surnames.add(m.group(2))
-    for m in re.finditer(rf"{LABELS}:?\s+((?:{CAP}|{UPW})(?:\s(?:{CAP}|{UPW}))?)", text):  # form labels
-        if m.group(1).split()[0].title() not in STOP:
+
+    # --- 3-word compound name detection (handles compound surnames/first names) ---
+    for m in re.finditer(rf"(?=\b({CAP})\s({CAP})\s({CAP})\b)", text):
+        a, b, c = m.group(1), m.group(2), m.group(3)
+        full_end = m.start(1) + len(a) + 1 + len(b) + 1 + len(c)
+        if b in SURNAME_PREFIX and a not in STOP and c not in STOP:
+            # "Mara De Luca" — first + prefix + surname
+            spans.append((m.start(1), full_end))
+            surnames.add(f"{b} {c}")
+        elif a in SURNAME_PREFIX and c not in STOP:
+            # "De Luca Mara" — prefix + surname + first
+            spans.append((m.start(1), full_end))
+            surnames.add(f"{a} {b}")
+
+    # --- Title + full name (capture ALL consecutive cap words after title, same line) ---
+    for m in re.finditer(rf"{TITLES} ((?:{CAP} ){{0,3}}{CAP})\b", text):
+        words = m.group(1).split()
+        if words[0] not in STOP:
             spans.append((m.start(1), m.end(1)))
-    for m in re.finditer(rf"^\[\d\d:\d\d\]\s({CAP}):", text, re.M):  # chat speaker
+            _learn_surname(words, surnames)
+
+    # --- Initial + name: "M. Rossi" or "M. De Luca" ---
+    for m in re.finditer(rf"(?<![\w.])([A-Z])\.\s((?:{CAP}\s)?{CAP})\b", text):
+        words = m.group(2).split()
+        if words[-1] not in STOP:
+            spans.append((m.start(), m.end()))
+            if len(words) == 2 and words[0] in SURNAME_PREFIX:
+                surnames.add(f"{words[0]} {words[1]}")
+            else:
+                surnames.add(words[-1])
+
+    # --- Form labels: "Nominativo: Surname First" (up to 4 words, same line) ---
+    for m in re.finditer(rf"{LABELS}:?\s+((?:(?:{CAP}|{UPW}) ){{0,3}}(?:{CAP}|{UPW}))", text):
+        words = m.group(1).split()
+        if words[0].title() not in STOP:
+            spans.append((m.start(1), m.end(1)))
+            _learn_surname([w.title() for w in words], surnames)
+
+    # --- Chat speaker: [HH:MM] Name: ---
+    for m in re.finditer(rf"^\[\d\d:\d\d\]\s({CAP}):", text, re.M):
         spans.append((m.start(1), m.end(1)))
+
+    # --- Chat greeting: "ciao name" (lowercase, 1 or 2 words) ---
+    for m in re.finditer(r"\bciao\s+([a-zà-ÿ]+(?:\s[a-zà-ÿ]+)?)\b", text):
+        spans.append((m.start(1), m.end(1)))
+
+    # --- "senti Name" pattern (1 or 2 cap words, or compound surname) ---
+    for m in re.finditer(rf"\bsenti\s+((?:{CAP}\s)?{CAP})\b", text):
+        words = m.group(1).split()
+        if words[0] not in STOP:
+            spans.append((m.start(1), m.end(1)))
+            if len(words) == 2 and words[0] in SURNAME_PREFIX:
+                surnames.add(f"{words[0]} {words[1]}")
+            else:
+                surnames.add(words[-1])
+
+    # --- "— Name sa" pattern (after dash in chat, 1 or 2 cap words) ---
+    for m in re.finditer(rf"—\s+((?:{CAP}\s){{0,2}}{CAP})\s+sa\b", text):
+        spans.append((m.start(1), m.end(1)))
+
     return spans, surnames
 
 
@@ -125,8 +201,26 @@ def detect_corpus(texts, mode="pseudo"):
 
 def _parse_person(surface, surnames):
     toks = [t if t.endswith(".") else t.title() for t in surface.replace(".", ". ").split()]
+
+    # Initial: "M. Rossi" or "M. De Luca"
     if len(toks) >= 2 and toks[0].endswith(".") and len(toks[0]) == 2:
-        return toks[0][0], toks[-1], "initial"
+        rest = " ".join(toks[1:])
+        return toks[0][0], rest, "initial"
+
+    # 2-token compound surname: "Lo Russo", "De Luca", "Di Stefano"
+    if len(toks) == 2 and toks[0] in SURNAME_PREFIX:
+        return None, f"{toks[0]} {toks[1]}", "last"
+
+    # 3+ tokens: look for compound surname prefix
+    if len(toks) >= 3:
+        for i in range(len(toks) - 1):
+            if toks[i] in SURNAME_PREFIX:
+                compound = f"{toks[i]} {toks[i+1]}"
+                first_parts = toks[:i] + toks[i+2:]
+                if first_parts:
+                    return " ".join(first_parts), compound, "full"
+                return None, compound, "last"
+
     if len(toks) >= 2:
         if _isfirst(toks[-1]) and not _isfirst(toks[0]):  # Surname Firstname
             return toks[-1], " ".join(toks[:-1]), "full"
@@ -188,7 +282,9 @@ class Resolver:
                 return self.key(a.upper(), b, "initial", local=local)
             return self.key(b, a, "full") if _isfirst(b) and not _isfirst(a) else self.key(a, b, "full")
         for pool in (local, self.full):
-            c = [x for x in pool if loc in ((x[0] + x[1]).lower(), (x[1] + x[0]).lower())]
+            c = [x for x in pool if loc in ((x[0] + x[1]).lower(), (x[1] + x[0]).lower(),
+                                             (x[0].replace(" ", "") + x[1].replace(" ", "")).lower(),
+                                             (x[1].replace(" ", "") + x[0].replace(" ", "")).lower())]
             if len(c) == 1:
                 return f"{c[0][1]}|{c[0][0]}"
         return self.key(loc[0].upper(), loc[1:].capitalize(), "initial", local=local)

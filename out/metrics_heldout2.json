@@ -1,0 +1,98 @@
+{
+ "regex": {
+  "mode": "regex",
+  "privacy_recall": 0.6363636363636364,
+  "privacy_precision": 1.0,
+  "leaked_spans": 160,
+  "gold_spans": 440,
+  "recall_by_type": {
+   "ADDRESS": 1.0,
+   "EMAIL": 1.0,
+   "EMPLOYEE_ID": 1.0,
+   "IBAN": 1.0,
+   "PERSON": 0.0,
+   "PHONE": 1.0,
+   "PLATE": 1.0,
+   "TAX_CODE": 1.0
+  },
+  "utility_preserved": 1.0,
+  "linkage_bcubed": {
+   "precision": 0.0625,
+   "recall": 1.0,
+   "f1": 0.11764705882352941
+  },
+  "qa_tickets_per_reporter_rand": 1.0,
+  "qa_top_reporter_count": {
+   "truth": 0,
+   "anonymised": 0
+  },
+  "qa_distinct_injured_workers": {
+   "truth": 0,
+   "anonymised": 0
+  }
+ },
+ "redact": {
+  "mode": "redact",
+  "privacy_recall": 1.0,
+  "privacy_precision": 1.0,
+  "leaked_spans": 0,
+  "gold_spans": 440,
+  "recall_by_type": {
+   "ADDRESS": 1.0,
+   "EMAIL": 1.0,
+   "EMPLOYEE_ID": 1.0,
+   "IBAN": 1.0,
+   "PERSON": 1.0,
+   "PHONE": 1.0,
+   "PLATE": 1.0,
+   "TAX_CODE": 1.0
+  },
+  "utility_preserved": 1.0,
+  "linkage_bcubed": {
+   "precision": 0.0505625,
+   "recall": 0.696722138972139,
+   "f1": 0.09428271722601858
+  },
+  "qa_tickets_per_reporter_rand": 1.0,
+  "qa_top_reporter_count": {
+   "truth": 0,
+   "anonymised": 0
+  },
+  "qa_distinct_injured_workers": {
+   "truth": 0,
+   "anonymised": 0
+  }
+ },
+ "pseudo": {
+  "mode": "pseudo",
+  "privacy_recall": 1.0,
+  "privacy_precision": 1.0,
+  "leaked_spans": 0,
+  "gold_spans": 440,
+  "recall_by_type": {
+   "ADDRESS": 1.0,
+   "EMAIL": 1.0,
+   "EMPLOYEE_ID": 1.0,
+   "IBAN": 1.0,
+   "PERSON": 1.0,
+   "PHONE": 1.0,
+   "PLATE": 1.0,
+   "TAX_CODE": 1.0
+  },
+  "utility_preserved": 1.0,
+  "linkage_bcubed": {
+   "precision": 0.9132976190476191,
+   "recall": 0.5076693167943168,
+   "f1": 0.6525882715449143
+  },
+  "qa_tickets_per_reporter_rand": 1.0,
+  "qa_top_reporter_count": {
+   "truth": 0,
+   "anonymised": 0
+  },
+  "qa_distinct_injured_workers": {
+   "truth": 0,
+   "anonymised": 0
+  }
+ }
+}
