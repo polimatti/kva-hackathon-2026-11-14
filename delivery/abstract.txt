@@ -1,0 +1,9 @@
+Velo – pseudonimi che la memoria capisce. Track: Anonymising data.
+
+Un'azienda manifatturiera vuole mettere ticket di manutenzione, email dei fornitori e rapporti di infortunio in una memoria AI, ma prima deve togliere i dati personali. Oggi si oscura con etichette come [PERSONA]: la privacy regge, la memoria no. Sul nostro corpus di prova i lavoratori infortunati distinti passano da 27 a 1 e la domanda "chi apre più ticket" non ha più risposta.
+
+Velo dà a ogni persona uno pseudonimo stabile in tutti i documenti: "Ing. Rossi", "M. Rossi", "Rossi" e mario.rossi@… diventano la stessa PERSONA-07, con la tabella di corrispondenza tenuta separata (EDPB, Guidelines 01/2025).
+
+Tutto è misurato su dati sintetici con verità nota, in tre set: sviluppo, held-out e un test congelato eseguito una volta. Sul test congelato, codici fiscali, IBAN, telefoni, targhe e indirizzi sono coperti al 100%; i nomi difficili (cognomi composti, nomi in minuscolo) solo al 51%. Oggi costruiamo il pezzo che manca e lo rimisuriamo sullo stesso test.
+
+Cerchiamo chi mette documenti aziendali in un modello: parliamo.
