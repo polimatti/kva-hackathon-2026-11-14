@@ -79,8 +79,8 @@ def evaluate(docs, mode):
     inc = [(d, a) for d, a in zip(docs, anon) if d["kind"] == "incident"]
     gold_w = len({d["facts"]["worker"] for d, _ in inc})
     pred_w = len({(re.search(r"Lavoratore: (.+?), CF", a) or [None, None])[1] for _, a in inc})
-    top_gold = Counter(gold_rep).most_common(1)[0][1]
-    top_pred = Counter(pred_rep).most_common(1)[0][1]
+    top_gold = Counter(gold_rep).most_common(1)[0][1] if gold_rep else 0
+    top_pred = Counter(pred_rep).most_common(1)[0][1] if pred_rep else 0
     P, R, F = bcubed(link)
     return {
         "mode": mode,

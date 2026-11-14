@@ -1,0 +1,98 @@
+{
+ "regex": {
+  "mode": "regex",
+  "privacy_recall": 0.5384615384615384,
+  "privacy_precision": 1.0,
+  "leaked_spans": 300,
+  "gold_spans": 650,
+  "recall_by_type": {
+   "ADDRESS": 1.0,
+   "EMAIL": 1.0,
+   "EMPLOYEE_ID": 1.0,
+   "IBAN": 1.0,
+   "PERSON": 0.0,
+   "PHONE": 1.0,
+   "PLATE": 1.0,
+   "TAX_CODE": 1.0
+  },
+  "utility_preserved": 1.0,
+  "linkage_bcubed": {
+   "precision": 0.055999999999999994,
+   "recall": 1.0,
+   "f1": 0.10606060606060605
+  },
+  "qa_tickets_per_reporter_rand": 1.0,
+  "qa_top_reporter_count": {
+   "truth": 0,
+   "anonymised": 0
+  },
+  "qa_distinct_injured_workers": {
+   "truth": 0,
+   "anonymised": 0
+  }
+ },
+ "redact": {
+  "mode": "redact",
+  "privacy_recall": 0.7753846153846153,
+  "privacy_precision": 1.0,
+  "leaked_spans": 146,
+  "gold_spans": 650,
+  "recall_by_type": {
+   "ADDRESS": 1.0,
+   "EMAIL": 1.0,
+   "EMPLOYEE_ID": 1.0,
+   "IBAN": 1.0,
+   "PERSON": 0.5133,
+   "PHONE": 1.0,
+   "PLATE": 1.0,
+   "TAX_CODE": 1.0
+  },
+  "utility_preserved": 1.0,
+  "linkage_bcubed": {
+   "precision": 0.055678635090399796,
+   "recall": 0.673972500810736,
+   "f1": 0.10285975608674916
+  },
+  "qa_tickets_per_reporter_rand": 1.0,
+  "qa_top_reporter_count": {
+   "truth": 0,
+   "anonymised": 0
+  },
+  "qa_distinct_injured_workers": {
+   "truth": 0,
+   "anonymised": 0
+  }
+ },
+ "pseudo": {
+  "mode": "pseudo",
+  "privacy_recall": 0.7753846153846153,
+  "privacy_precision": 1.0,
+  "leaked_spans": 146,
+  "gold_spans": 650,
+  "recall_by_type": {
+   "ADDRESS": 1.0,
+   "EMAIL": 1.0,
+   "EMPLOYEE_ID": 1.0,
+   "IBAN": 1.0,
+   "PERSON": 0.5133,
+   "PHONE": 1.0,
+   "PLATE": 1.0,
+   "TAX_CODE": 1.0
+  },
+  "utility_preserved": 1.0,
+  "linkage_bcubed": {
+   "precision": 0.62397256882551,
+   "recall": 0.4476414652885241,
+   "f1": 0.5212996211641118
+  },
+  "qa_tickets_per_reporter_rand": 1.0,
+  "qa_top_reporter_count": {
+   "truth": 0,
+   "anonymised": 0
+  },
+  "qa_distinct_injured_workers": {
+   "truth": 0,
+   "anonymised": 0
+  }
+ }
+}

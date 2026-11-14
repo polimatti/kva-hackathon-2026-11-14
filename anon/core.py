@@ -14,12 +14,20 @@ GAZ_FIRST = set("""Mario Luca Giulia Francesca Marco Andrea Paolo Sara Elena Mat
 Federica Alessandro Valentina Roberto Silvia Giorgio Martina Fabio Anna Riccardo Giuseppe Giovanni Antonio Francesco
 Maria Lucia Alessia Michele Lorenzo Gabriele Daniele Emanuele Claudia Paola Giorgia Alberto Enrico Nicola Pietro
 Vittorio Carlo Roberta Monica Cristina Barbara Sergio Massimo Alessio Filippo Tommaso Beatrice Ilaria Elisa Irene
-Franco Bruno Angelo Salvatore Vincenzo Raffaele Domenico Teresa Rosa Giovanna Patrizia Daniela Manuela""".split())
+Franco Bruno Angelo Salvatore Vincenzo Raffaele Domenico Teresa Rosa Giovanna Patrizia Daniela Manuela
+Leonardo Edoardo Jacopo Ettore Tiziano Mirko Diego Samuele Mattia Christian Gianluca Luigi Umberto Renato Sofia
+Aurora Ginevra Gaia Ludovica Noemi Arianna Greta Emma Alice Camilla Rebecca Viola Asia Bianca Marta Nicole Serena
+Veronica Michela Giada Alberta Antonella Rita Luisa Carla Gianni Mauro Claudio Luciano Walter Dario Ivan Igor
+Cesare Ottavio Lino Oreste Adalberto Ernesta Gisella Nives Fulvia Ugo Aldo Elio Silvano Rocco Nadia Loredana
+Tommaso Achille Pierluigi Gianfranco Giancarlo Pierpaolo Stefania Simona Cinzia Elisabetta Ornella Graziella""".split())
 TITLES = r"(?:Ing\.|Dott\.ssa|Dott\.|Geom\.|Sig\.ra|Sig\.|Per\. Ind\.|Avv\.|Arch\.)"
 CAP = r"[A-ZÀ-Ý][a-zà-ÿ']+"
 STOP = {"Ticket", "Macchina", "Segnalato", "Descrizione", "Recapito", "Oggetto", "Gentile", "Cordiali", "Tel",
         "Rapporto", "Lavoratore", "Reparto", "Dinamica", "Era", "Automezzo", "Residenza", "Se", "Il", "La", "Da",
-        "Per", "Via", "Corso", "Piazza", "Strada", "Torino"}
+        "Per", "Via", "Corso", "Piazza", "Strada", "Torino", "Oggi", "Ieri", "Domani", "Nota", "Note", "Anche",
+        "Poi", "Quindi", "Inoltre", "Dopo", "Prima", "Durante", "Secondo", "Come", "Mentre", "Ciao", "Buongiorno",
+        "Grazie", "Salve", "Si", "Non", "Ho", "Abbiamo", "Ha", "Questa", "Questo", "Ogni", "Alle", "Dal", "Del",
+        "Della", "Nel", "Nella", "Con", "Su", "Oggetto", "Fornitore", "Mezzo", "Corso", "Modulo", "Esito"}
 
 STRUCTURED = [  # (type, priority, regex) — lower priority wins on overlap
     ("ADDRESS", 0, re.compile(r"\b(?:Via|Viale|Corso|Piazza|Strada|Largo)\s[^\n,]{2,45}?\s\d{1,4}[A-Z]?,\s\d{5}\s" + CAP)),
@@ -28,8 +36,22 @@ STRUCTURED = [  # (type, priority, regex) — lower priority wins on overlap
     ("TAX_CODE", 3, re.compile(r"\b[A-Z]{6}\d{2}[A-EHLMPR-T]\d{2}[A-Z]\d{3}[A-Z]\b")),
     ("EMPLOYEE_ID", 3, re.compile(r"\bMAT-\d{5}\b")),
     ("PLATE", 3, re.compile(r"\b[A-Z]{2}\d{3}[A-Z]{2}\b")),
-    ("PHONE", 4, re.compile(r"(?<![\w-])(?:\+39\s?)?(?:3\d{2}[\s-]?\d{3}\s?\d{4}|0\d{1,3}\s\d{3}\s\d{4})(?![\w-])")),
+    ("PHONE", 4, re.compile(r"(?<![\w-])(?:\+39\s?)?(?:3\d{2}[\s-]?\d{3}\s?\d{3,4}|0\d{1,3}(?:[\s/]\d{3}\s\d{4}|[\s/]?\d{6,8}))(?![\w-])")),
 ]
+LABELS = (r"(?:COGNOME E NOME|NOME E COGNOME|Cognome e nome|Nome e cognome|Nominativo|NOMINATIVO|Dipendente|"
+          r"Lavoratore|a favore di|Segnalato da|Richiedente|Firmato|Referente)")
+UPW = r"[A-ZÀ-Ý][A-ZÀ-Ý']+"
+
+
+def _isfirst(w):
+    return w.title() in GAZ_FIRST
+
+
+def _pairs(text, word):
+    """Every pair of adjacent words, overlapping ("Oggi Romano Edoardo" -> both pairs). Yields (start, end, a, b)."""
+    for m in re.finditer(rf"(?=\b({word}) ({word})\b)", text):
+        a, b = m.group(1), m.group(2)
+        yield m.start(1), m.start(1) + len(a) + 1 + len(b), a, b
 
 
 def _structured(text):
@@ -39,15 +61,23 @@ def _structured(text):
 def _person_seed(text):
     """Rules that need no corpus knowledge. Returns spans and learned surnames."""
     spans, surnames = [], set()
-    for m in re.finditer(rf"\b({CAP})\s({CAP})\b", text):  # Firstname Surname
-        if m.group(1) in GAZ_FIRST and m.group(2) not in STOP:
-            spans.append((m.start(), m.end())); surnames.add(m.group(2))
+    for s, e, a, b in _pairs(text, CAP):
+        if a in GAZ_FIRST and b not in STOP:  # Firstname Surname (also "Anna Bruno")
+            spans.append((s, e)); surnames.add(b)
+        elif _isfirst(b) and not _isfirst(a) and a not in STOP:  # Surname Firstname (Italian admin order)
+            spans.append((s, e)); surnames.add(a)
+    for s, e, a, b in _pairs(text, UPW):  # ROSSI MARIO / MARIO ROSSI
+        if _isfirst(a) != _isfirst(b) and (a if _isfirst(b) else b).title() not in STOP:
+            spans.append((s, e)); surnames.add((b if _isfirst(a) else a).title())
     for m in re.finditer(rf"{TITLES}\s({CAP})\b", text):  # Ing. Rossi
         if m.group(1) not in STOP:
             spans.append((m.start(1), m.end(1))); surnames.add(m.group(1))
     for m in re.finditer(rf"(?<![\w.])([A-Z])\.\s({CAP})\b", text):  # M. Rossi
         if m.group(2) not in STOP:
             spans.append((m.start(), m.end())); surnames.add(m.group(2))
+    for m in re.finditer(rf"{LABELS}:?\s+((?:{CAP}|{UPW})(?:\s(?:{CAP}|{UPW}))?)", text):  # form labels
+        if m.group(1).split()[0].title() not in STOP:
+            spans.append((m.start(1), m.end(1)))
     for m in re.finditer(rf"^\[\d\d:\d\d\]\s({CAP}):", text, re.M):  # chat speaker
         spans.append((m.start(1), m.end(1)))
     return spans, surnames
@@ -87,18 +117,21 @@ def detect_corpus(texts, mode="pseudo"):
     for t, seed in zip(texts, seeds):
         cands = _structured(t)
         if mode != "regex":
-            cands += [(s, e, "PERSON", 5) for s, e in seed + _person_coref(t, surnames)]
+            cands += [(s, e, "PERSON", 5) for s, e in seed]
+            cands += [(s, e, "PERSON", 6) for s, e in _person_coref(t, surnames)]
         all_spans.append([(s, e, typ) for s, e, typ, _ in _resolve_overlaps(cands)])
     return all_spans, surnames
 
 
 def _parse_person(surface, surnames):
-    toks = surface.replace(".", ". ").split()
+    toks = [t if t.endswith(".") else t.title() for t in surface.replace(".", ". ").split()]
     if len(toks) >= 2 and toks[0].endswith(".") and len(toks[0]) == 2:
         return toks[0][0], toks[-1], "initial"
     if len(toks) >= 2:
+        if _isfirst(toks[-1]) and not _isfirst(toks[0]):  # Surname Firstname
+            return toks[-1], " ".join(toks[:-1]), "full"
         return " ".join(toks[:-1]), toks[-1], "full"
-    return (None, toks[0], "last") if toks[0] in surnames else (toks[0], None, "first")
+    return (None, toks[0], "last") if toks[0] in surnames or not _isfirst(toks[0]) else (toks[0], None, "first")
 
 
 class Resolver:
@@ -145,10 +178,19 @@ class Resolver:
         return self.key(*_parse_person(surface, self.surnames), local=local)
 
     def email(self, addr, local=()):
-        loc = addr.split("@")[0]
+        """Local parts: nome.cognome, cognome.nome, cognome.n, n.cognome, ncognome, nomecognome."""
+        loc = addr.split("@")[0].lower()
         if "." in loc:
-            a, b = loc.split(".", 1)
-            return self.key(a.capitalize(), b.capitalize(), "full")
+            a, b = (x.capitalize() for x in loc.split(".", 1))
+            if len(b) == 1:
+                return self.key(b.upper(), a, "initial", local=local)
+            if len(a) == 1:
+                return self.key(a.upper(), b, "initial", local=local)
+            return self.key(b, a, "full") if _isfirst(b) and not _isfirst(a) else self.key(a, b, "full")
+        for pool in (local, self.full):
+            c = [x for x in pool if loc in ((x[0] + x[1]).lower(), (x[1] + x[0]).lower())]
+            if len(c) == 1:
+                return f"{c[0][1]}|{c[0][0]}"
         return self.key(loc[0].upper(), loc[1:].capitalize(), "initial", local=local)
 
 
