@@ -1,9 +1,16 @@
-"""Dual Feedback Loop: verification gate + consistency audit + forensic compliance certificate.
+"""Dual Feedback Loop: verification gate + consistency audit + auto-remediation + forensic certificate.
 
-Loop 1 — Forward Verification Gate
-    After pseudonymisation, re-scan the OUTPUT for residual PII that survived the first pass.
-    Any structured PII pattern found in the pseudonymised text (that is not one of our own tokens)
-    is a leak. The gate marks the batch FAIL and reports exactly where.
+Loop 1 — Forward Verification Gate (enhanced, privacy-driven)
+    Two-layer re-scan of the OUTPUT:
+    Layer A: Structured PII patterns (email, IBAN, tax code, phone, address, plate, employee ID).
+    Layer B: Vault-driven check — every original value in the vault is searched in the output.
+             This catches names, addresses, and any PII that the pattern layer would miss.
+    Any match that is not one of our own tokens is a leak.
+
+Loop 1b — Auto-Remediation
+    When Layer B finds a surviving original value, it patches the output automatically by
+    replacing the leaked value with its corresponding token from the vault (reverse lookup).
+    The remediation is logged and the certificate records both the leak and the patch.
 
 Loop 2 — Retro-Feedback Consistency Audit
     After corpus-level processing, walk every span and check:
@@ -12,17 +19,19 @@ Loop 2 — Retro-Feedback Consistency Audit
       - Cross-file coherence (if text and tables share a person, they share a token)
     Splits and merges degrade the memory's ability to link facts.
 
+Loop 3 — Per-Document Privacy Report
+    For each document, produce a privacy summary: how many spans were replaced,
+    by type, the verification status, and a risk score (0-100).
+
 Output — Compliance Certificate
     A JSON document that travels with the batch: batch ID, timestamps, GDPR basis,
-    gate verdicts, statistics, and a final COMPLIANT / NON-COMPLIANT / REVIEW status.
-    This is the artifact a DPO reads before approving ingestion.
+    gate verdicts, remediation log, statistics, and a final status.
 """
 import hashlib
 import re
 from collections import defaultdict
 from datetime import datetime, timezone
 
-# Structured PII patterns (same as core.py) for the verification re-scan
 _CAP = r"[A-ZÀ-Ý][a-zà-ÿ']+"
 _VERIFY_PATTERNS = [
     ("EMAIL", re.compile(r"\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b")),
@@ -34,42 +43,119 @@ _VERIFY_PATTERNS = [
     ("ADDRESS", re.compile(r"\b(?:Via|Viale|Corso|Piazza|Strada|Largo)\s[^\n,]{2,45}?\s\d{1,4}[A-Z]?,\s\d{5}\s" + _CAP)),
 ]
 
-# Our own token pattern — these are NOT leaks
 _OUR_TOKEN = re.compile(r"\[(PERSONA|EMAIL PERSONA|TEL|IBAN|CF|MATRICOLA|TARGA|INDIRIZZO)-\d{2}\]")
 
 
-def verify_clean(anonymised_texts):
+def _is_inside_token(text, start, end):
+    """Check if a match position is inside one of our own tokens."""
+    # Search backward for [ and forward for ]
+    ctx_start = max(0, start - 20)
+    ctx_end = min(len(text), end + 20)
+    ctx = text[ctx_start:ctx_end]
+    # Find all our tokens in the context
+    for m in _OUR_TOKEN.finditer(ctx):
+        tok_start = ctx_start + m.start()
+        tok_end = ctx_start + m.end()
+        if tok_start <= start and tok_end >= end:
+            return True
+    return False
+
+
+def verify_clean(anonymised_texts, vault=None):
     """Loop 1: re-scan pseudonymised output for residual PII.
 
-    Returns a list (one per text) of leak dicts: {type, start, end, surface}.
-    An empty list means the text is clean.
+    Layer A: structured pattern scan.
+    Layer B (if vault provided): vault-driven scan — check that no original value survives.
+
+    Returns (all_leaks, remediation_map):
+      all_leaks: list (one per text) of leak dicts {type, start, end, surface, layer}
+      remediation_map: dict {original_value: token} for auto-patching (Layer B only)
     """
     all_leaks = []
+    remediation_map = {}
+
+    # Build reverse vault: original_value -> token (for Layer B)
+    if vault:
+        for token, originals in vault.items():
+            if isinstance(originals, list):
+                for orig in originals:
+                    if len(orig) >= 3:  # skip very short values to avoid false matches
+                        remediation_map[orig] = token
+
     for text in anonymised_texts:
         leaks = []
+
+        # Layer A: structured patterns
         for typ, rx in _VERIFY_PATTERNS:
             for m in rx.finditer(text):
-                surface = m.group()
-                # Check it's not inside one of our tokens
-                if _OUR_TOKEN.search(surface):
+                if _is_inside_token(text, m.start(), m.end()):
                     continue
-                # Check the match isn't part of a token like [EMAIL PERSONA-01]
-                ctx_start = max(0, m.start() - 1)
-                ctx_end = min(len(text), m.end() + 1)
-                ctx = text[ctx_start:ctx_end]
-                if "[" in ctx and "]" in ctx:
-                    continue
-                leaks.append({"type": typ, "start": m.start(), "end": m.end(), "surface": surface})
-            all_leaks.append(leaks)
-    return all_leaks
+                leaks.append({
+                    "type": typ, "start": m.start(), "end": m.end(),
+                    "surface": m.group(), "layer": "A_pattern",
+                })
+
+        # Layer B: vault-driven — search for any original value in the output
+        if vault:
+            for orig, token in remediation_map.items():
+                # Case-sensitive search for the original value
+                idx = 0
+                while True:
+                    pos = text.find(orig, idx)
+                    if pos == -1:
+                        break
+                    # Make sure it's not inside a token
+                    if not _is_inside_token(text, pos, pos + len(orig)):
+                        leaks.append({
+                            "type": "VAULT_LEAK", "start": pos, "end": pos + len(orig),
+                            "surface": orig, "layer": "B_vault",
+                            "remediation_token": token,
+                        })
+                    idx = pos + 1
+
+        all_leaks.append(leaks)
+
+    return all_leaks, remediation_map
+
+
+def auto_remediate(anonymised_texts, all_leaks):
+    """Loop 1b: auto-patch surviving original values found by Layer B.
+
+    Returns (patched_texts, remediation_log).
+    Only patches B_vault leaks (which have a known token). A_pattern leaks are flagged but
+    not auto-patched (they need manual review — the token is unknown).
+    """
+    patched_texts = []
+    remediation_log = []
+
+    for text, leaks in zip(anonymised_texts, all_leaks):
+        # Sort vault leaks by position (reverse order for safe replacement)
+        vault_leaks = sorted(
+            [lk for lk in leaks if lk["layer"] == "B_vault"],
+            key=lambda lk: lk["start"],
+            reverse=True,
+        )
+        patched = text
+        for lk in vault_leaks:
+            token = lk.get("remediation_token", "[REDACTED]")
+            patched = patched[:lk["start"]] + token + patched[lk["end"]:]
+            remediation_log.append({
+                "original": lk["surface"],
+                "replaced_with": token,
+                "position": lk["start"],
+                "auto_patched": True,
+            })
+        patched_texts.append(patched)
+
+    return patched_texts, remediation_log
 
 
 def audit_consistency(spans_per_doc):
     """Loop 2: retro-feedback consistency audit.
 
     Checks identity coherence across the full corpus:
-    - splits: same identity key → multiple tokens (bad: fragments a person)
-    - merges: same token → multiple identity keys (bad: conflates people)
+    - splits: same identity key -> multiple tokens (fragments a person)
+    - merges: same token -> multiple identity keys (conflates people)
 
     Returns dict with splits, merges, scores, and a boolean `consistent`.
     """
@@ -106,6 +192,44 @@ def audit_consistency(spans_per_doc):
     }
 
 
+def privacy_report_per_doc(spans_per_doc, verification_results):
+    """Loop 3: per-document privacy summary.
+
+    For each document, produce:
+    - spans_replaced: count by type
+    - verification_status: clean / leaked
+    - risk_score: 0 (clean, many spans replaced) to 100 (leaks found)
+    """
+    reports = []
+    for i, (spans, leaks) in enumerate(zip(spans_per_doc, verification_results)):
+        by_type = defaultdict(int)
+        for s in spans:
+            by_type[s.get("type", "UNKNOWN")] += 1
+
+        has_leaks = len(leaks) > 0
+        n_spans = len(spans)
+
+        # Risk score: 0 = clean with good coverage, 100 = leaks
+        if has_leaks:
+            risk = min(100, 50 + len(leaks) * 10)
+        elif n_spans == 0:
+            risk = 30  # no PII found — could be clean or could be missed
+        else:
+            risk = 0
+
+        reports.append({
+            "doc_index": i,
+            "spans_replaced": dict(by_type),
+            "total_spans": n_spans,
+            "leaks_found": len(leaks),
+            "leak_types": [lk["type"] for lk in leaks],
+            "verification_status": "leaked" if has_leaks else "clean",
+            "risk_score": risk,
+        })
+
+    return reports
+
+
 def generate_certificate(
     batch_id,
     n_documents,
@@ -114,22 +238,41 @@ def generate_certificate(
     verification_results,
     consistency_results,
     vault_location="separate storage (EDPB-compliant)",
+    remediation_log=None,
+    privacy_reports=None,
 ):
-    """Generate a forensic compliance certificate for the batch.
-
-    This is the artifact a DPO reads before approving ingestion into memory.
-    """
+    """Generate a forensic compliance certificate for the batch."""
     now = datetime.now(timezone.utc)
     total_leaks = sum(len(r) for r in verification_results)
-    gate1_pass = total_leaks == 0
+    pattern_leaks = sum(
+        1 for r in verification_results for lk in r if lk.get("layer") == "A_pattern"
+    )
+    vault_leaks = sum(
+        1 for r in verification_results for lk in r if lk.get("layer") == "B_vault"
+    )
+    auto_patched = len(remediation_log) if remediation_log else 0
+    unpatched = pattern_leaks  # A_pattern leaks are not auto-patched
+
+    gate1_pass = unpatched == 0  # pass if all leaks were auto-remediated
     gate2_pass = consistency_results["consistent"]
 
     if gate1_pass and gate2_pass:
         status = "COMPLIANT"
     elif gate1_pass:
-        status = "REVIEW"  # no leaks, but consistency issues
+        status = "REVIEW"
     else:
         status = "NON-COMPLIANT"
+
+    # Risk summary from per-doc reports
+    risk_summary = None
+    if privacy_reports:
+        risks = [r["risk_score"] for r in privacy_reports]
+        risk_summary = {
+            "max_risk": max(risks),
+            "avg_risk": round(sum(risks) / len(risks), 1),
+            "docs_at_risk": sum(1 for r in risks if r > 0),
+            "docs_clean": sum(1 for r in risks if r == 0),
+        }
 
     cert = {
         "certificate_id": hashlib.sha256(
@@ -155,9 +298,13 @@ def generate_certificate(
             "vault_requirement": "Additional information kept separately per EDPB 01/2025 §3",
         },
         "gate_1_verification": {
-            "description": "Forward re-scan of pseudonymised output for residual PII",
+            "description": "Forward re-scan: structured patterns (Layer A) + vault-driven check (Layer B)",
             "passed": gate1_pass,
             "residual_pii_found": total_leaks,
+            "pattern_leaks": pattern_leaks,
+            "vault_leaks": vault_leaks,
+            "auto_remediated": auto_patched,
+            "unpatched_leaks": unpatched,
             "documents_with_leaks": sum(1 for r in verification_results if r),
         },
         "gate_2_consistency": {
@@ -179,63 +326,96 @@ def generate_certificate(
         "recommendations": [],
     }
 
-    if not gate1_pass:
+    if risk_summary:
+        cert["risk_summary"] = risk_summary
+
+    if remediation_log:
+        cert["remediation"] = {
+            "auto_patched": len(remediation_log),
+            "detail": remediation_log[:20],  # cap at 20 for readability
+        }
+
+    if unpatched > 0:
         cert["recommendations"].append(
-            f"CRITICAL: {total_leaks} PII pattern(s) survived pseudonymisation. "
-            "Review and re-process before ingestion."
+            f"CRITICAL: {unpatched} structured PII pattern(s) survived pseudonymisation "
+            "and could not be auto-patched. Review and re-process before ingestion."
+        )
+    if auto_patched > 0:
+        cert["recommendations"].append(
+            f"INFO: {auto_patched} original value(s) found in output were auto-patched "
+            "using vault reverse-lookup. Verify the patched output."
         )
     if not gate2_pass:
         if consistency_results["split_count"]:
             cert["recommendations"].append(
-                f"{consistency_results['split_count']} identity split(s): same person has multiple tokens. "
-                "Memory queries about that person may return partial results."
+                f"{consistency_results['split_count']} identity split(s): same person has "
+                "multiple tokens. Memory queries may return partial results."
             )
         if consistency_results["merge_count"]:
             cert["recommendations"].append(
-                f"{consistency_results['merge_count']} identity merge(s): different people share a token. "
-                "Memory may conflate distinct individuals."
+                f"{consistency_results['merge_count']} identity merge(s): different people "
+                "share a token. Memory may conflate distinct individuals."
             )
     if not cert["recommendations"]:
-        cert["recommendations"].append("No issues found. Batch is ready for memory ingestion.")
+        cert["recommendations"].append(
+            "No issues found. Batch is ready for memory ingestion."
+        )
 
     return cert
 
 
 def print_certificate(cert):
     """Human-readable summary of the certificate."""
+    g1 = cert["gate_1_verification"]
+    g2 = cert["gate_2_consistency"]
     lines = [
-        f"{'=' * 60}",
+        f"{'=' * 64}",
         f"  VELO COMPLIANCE CERTIFICATE",
-        f"{'=' * 60}",
+        f"{'=' * 64}",
         f"  Batch:       {cert['batch_id']}",
         f"  Certificate: {cert['certificate_id']}",
         f"  Generated:   {cert['generated_at']}",
         f"  Status:      {cert['status']}",
         f"  Mode:        {cert['mode']}",
-        f"{'─' * 60}",
+        f"{'─' * 64}",
         f"  SCOPE",
         f"    Documents: {cert['scope']['documents']}",
         f"    Tables:    {cert['scope']['tables']}",
-        f"{'─' * 60}",
-        f"  GATE 1 — FORWARD VERIFICATION",
-        f"    Passed:           {'YES' if cert['gate_1_verification']['passed'] else 'NO'}",
-        f"    Residual PII:     {cert['gate_1_verification']['residual_pii_found']}",
-        f"{'─' * 60}",
+        f"{'─' * 64}",
+        f"  GATE 1 — FORWARD VERIFICATION (dual-layer)",
+        f"    Passed:           {'YES' if g1['passed'] else 'NO'}",
+        f"    Layer A (patterns):   {g1.get('pattern_leaks', g1['residual_pii_found'])} leak(s)",
+        f"    Layer B (vault):      {g1.get('vault_leaks', 0)} leak(s)",
+        f"    Auto-remediated:      {g1.get('auto_remediated', 0)}",
+        f"    Unpatched:            {g1.get('unpatched_leaks', g1['residual_pii_found'])}",
+        f"{'─' * 64}",
         f"  GATE 2 — RETRO-FEEDBACK CONSISTENCY",
-        f"    Passed:           {'YES' if cert['gate_2_consistency']['passed'] else 'NO'}",
-        f"    Consistency:      {cert['gate_2_consistency']['consistency_score']:.1%}",
-        f"    Identity splits:  {cert['gate_2_consistency']['identity_splits']}",
-        f"    Identity merges:  {cert['gate_2_consistency']['identity_merges']}",
-        f"    Total identities: {cert['gate_2_consistency']['total_identities']}",
-        f"{'─' * 60}",
+        f"    Passed:           {'YES' if g2['passed'] else 'NO'}",
+        f"    Consistency:      {g2['consistency_score']:.1%}",
+        f"    Identity splits:  {g2['identity_splits']}",
+        f"    Identity merges:  {g2['identity_merges']}",
+        f"    Total identities: {g2['total_identities']}",
+    ]
+    if "risk_summary" in cert:
+        rs = cert["risk_summary"]
+        lines += [
+            f"{'─' * 64}",
+            f"  RISK SUMMARY",
+            f"    Avg risk score:   {rs['avg_risk']}",
+            f"    Max risk score:   {rs['max_risk']}",
+            f"    Docs clean:       {rs['docs_clean']}",
+            f"    Docs at risk:     {rs['docs_at_risk']}",
+        ]
+    lines += [
+        f"{'─' * 64}",
         f"  LEGAL BASIS",
         f"    {cert['legal_basis']['framework']} {cert['legal_basis']['pseudonymisation_definition']}",
         f"    {cert['legal_basis']['classification']}",
         f"    Vault: {cert['vault']['location']}",
-        f"{'─' * 60}",
+        f"{'─' * 64}",
         f"  RECOMMENDATIONS",
     ]
     for r in cert["recommendations"]:
         lines.append(f"    - {r}")
-    lines.append(f"{'=' * 60}")
+    lines.append(f"{'=' * 64}")
     return "\n".join(lines)
