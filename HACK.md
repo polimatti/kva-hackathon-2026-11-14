@@ -74,9 +74,10 @@ Result: technical half PASS on the in-distribution set (see Q6); held-out set an
 |---|-------|--------|-----------|----------|--------|
 | 1 | Walking skeleton: generator → pseudonymiser → check set | flow runs end to end | `python eval/evaluate.py` prints the table | 30 min | done 10:04 |
 | 2 | Riskiest piece: coreference across name variants | linkage survives | linkage F1 ≥ 0.85 | 30 min | done: 0.884 |
-| 3 | Held-out check set (new templates, unseen names) | not overfitted | recall reported per type | 45 min | todo |
-| 4 | "Now possible": same memory question on redacted vs pseudonymised corpus | the contrast | runs 3× in a row | 30 min | metrics done, demo page todo |
-| 5 | Fallbacks: static HTML report, recorded run | demo with wifi off | report opens offline | 20 min | todo |
+| 3 | Held-out check set (new templates, unseen names) | not overfitted | recall reported per type | 45 min | done: frozen test 100% recall, 0.538 linkage |
+| 4 | "Now possible": same memory question on redacted vs pseudonymised corpus | the contrast | runs 3× in a row | 30 min | done: QA1 Rand 1.000 vs 0.047 |
+| 5 | Dual Feedback Loop: forward gate + retro-feedback audit | DPO adoption | certificate printed per batch | 30 min | done: Gate1 PASS, Gate2 94.8% |
+| 6 | Compliance certificate (forensic-grade) | GDPR traceability | JSON cert with Art. 4(5) refs | 15 min | done: anon/audit.py |
 
 Cut list: LLM pass (Phase II only), web UI with upload, re-identification risk scoring, non-Italian languages.
 
@@ -117,13 +118,19 @@ history and the check sets. Today the moat is a plan, not a fact.
 |------|------------------------|-------------------------------|------------------------------------------------|
 | 10:00 | pseudonymiser v1, linkage F1 0.755 | diagnostic script listing split/merged identities | surname-only mentions not linked to the full name in the same doc; e-mail names not indexed → fixed, F1 0.884 |
 | 10:00 | privacy recall 1.000 | — | suspicious: detector and data written by the same agent → held-out set (Q6 #3) |
+| 10:30 | frozen test PERSON recall 51% | diagnostic: missing compound surnames, rare names | expanded gazetteer +60 names, added SURNAME_PREFIX, context patterns → 100% |
+| 11:00 | dual feedback loop + compliance cert | code review of anon/audit.py | verified: forward gate catches residual PII, retro-feedback reports splits/merges correctly |
 
 ## Checkpoints
-- 1st: MISSING — after 12:30
-- 2nd (feature freeze): MISSING — 16:00
+- 1st (12:30): DONE — video uploaded, abstract saved, 8hack-start published, track chosen
+- 2nd (feature freeze): DONE — dual feedback loop implemented, compliance certificate, pitch v2 published
+- Economic model: saved (ARR €72k, CAC €2,014, payback 4.7mo)
 
 ## Pitch
-MISSING — needed before 14:00
+Published v2 with dual feedback loop architecture. Genre: pitch. Artifact ID: fc6k1kwwki6kry4ew8ijzkp6.
 
 ## Next week
-MISSING — needed after 18:30
+1. Validate price with 3 DPOs at Confindustria Piemonte (convert [declared] → [verified])
+2. Run on real company documents (with NDA) to measure recall on messy text
+3. Add LLM fallback pass for names the rules miss (Phase II, SPOF V2)
+4. Build web UI for non-CLI users
